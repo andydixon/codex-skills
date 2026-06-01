@@ -82,5 +82,5 @@ say "Installed securityaudit to:"
 say "$DEST"
 say ""
 say "Restart Codex, then use:"
-say "  securityaudit"
-say "  securityaudit --fix"
+say '  $securityaudit'
+say '  $securityaudit --fix'
