@@ -1,8 +1,8 @@
 # Security Audit Skill
 
-This installs the `securityaudit` Codex skill.
+This installs the `securityaudit` audit/fix workflow for Codex or Claude Code.
 
-## Easiest install
+## Codex install
 
 Paste this into Codex:
 
@@ -12,17 +12,25 @@ Use $skill-installer to install https://github.com/andydixon/securityaudit-skill
 
 Restart Codex after it installs.
 
-## Terminal install
-
-Paste this into Terminal:
+Or paste this into Terminal:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/andydixon/securityaudit-skill/main/install.sh | bash -s -- andydixon/securityaudit-skill
+curl -fsSL https://raw.githubusercontent.com/andydixon/securityaudit-skill/main/install.sh | bash
 ```
 
 Restart Codex after it installs.
 
-## Use it
+## Claude Code install
+
+Paste this into Terminal:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/andydixon/securityaudit-skill/main/install-claude.sh | bash
+```
+
+Restart Claude Code if it was already open.
+
+## Codex usage
 
 Audit only:
 
@@ -36,4 +44,22 @@ Audit and fix:
 securityaudit --fix
 ```
 
-Fix mode only changes files when the project is already in a git repository. It runs tests before committing successful fixes.
+## Claude Code usage
+
+Audit only:
+
+```text
+/securityaudit
+```
+
+Audit and fix:
+
+```text
+/securityaudit --fix
+```
+
+## What it does
+
+Normal mode writes a project security audit report and does not change code.
+
+Fix mode only changes files when the project is already in a git repository. It runs tests before committing successful fixes. If the project is not a git repository, it refuses to make changes.
