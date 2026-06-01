@@ -35,13 +35,13 @@ Restart Claude Code if it was already open.
 Audit only:
 
 ```text
-securityaudit
+$securityaudit
 ```
 
 Audit and fix:
 
 ```text
-securityaudit --fix
+$securityaudit --fix
 ```
 
 ## Claude Code usage
