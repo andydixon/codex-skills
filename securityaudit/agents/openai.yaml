@@ -1,0 +1,4 @@
+interface:
+  display_name: "Security Audit"
+  short_description: "Audit and fix project security issues"
+  default_prompt: "Use $securityaudit to audit this project, or use $securityaudit --fix to repair findings in a git repo."
