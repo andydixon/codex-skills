@@ -27,13 +27,13 @@ Restart Codex after it installs.
 Audit only:
 
 ```text
-securityaudit
+$securityaudit
 ```
 
 Audit and fix:
 
 ```text
-securityaudit --fix
+$securityaudit --fix
 ```
 
 Fix mode only changes files when the project is already in a git repository. It runs tests before committing successful fixes.
