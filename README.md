@@ -7,7 +7,7 @@ This installs the `securityaudit` audit/fix workflow for Codex or Claude Code.
 Paste this into Codex:
 
 ```text
-Use $skill-installer to install https://dxn.pw/audit
+Use $skill-installer to install https://github.com/andydixon/securityaudit-skill/tree/main/securityaudit
 ```
 
 Restart Codex after it installs.
