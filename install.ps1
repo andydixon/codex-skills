@@ -1,7 +1,8 @@
 param(
   [string]$RepoSlug = $(if ($env:SECURITYAUDIT_REPO) { $env:SECURITYAUDIT_REPO } else { "andydixon/securityaudit-skill" }),
   [string]$Ref = $(if ($env:SECURITYAUDIT_REF) { $env:SECURITYAUDIT_REF } else { "main" }),
-  [string]$SkillPath = $(if ($env:SECURITYAUDIT_SKILL_PATH) { $env:SECURITYAUDIT_SKILL_PATH } else { "securityaudit" })
+  [Alias("SkillPath")]
+  [string]$Skills = $(if ($env:SECURITYAUDIT_SKILLS) { $env:SECURITYAUDIT_SKILLS } elseif ($env:SECURITYAUDIT_SKILL_PATH) { $env:SECURITYAUDIT_SKILL_PATH } else { "securityaudit aitm debullshit summarise" })
 )
 
 $ErrorActionPreference = "Stop"
@@ -17,8 +18,40 @@ function Fail {
   exit 1
 }
 
-function Copy-SecurityAuditSkill {
-  param([string]$SourcePath)
+function Get-SkillList {
+  param([string]$SkillText)
+  return @($SkillText -split "[,\s]+" | Where-Object { $_ })
+}
+
+function Assert-ValidSkillName {
+  param([string]$SkillName)
+  if ($SkillName -notmatch "^[A-Za-z0-9_-]+$") {
+    Fail "Invalid skill name: $SkillName"
+  }
+}
+
+function Show-CodexUsage {
+  param([string[]]$SkillNames)
+
+  Say "Restart Codex, then use:"
+  foreach ($skill in $SkillNames) {
+    if ($skill -eq "securityaudit") {
+      Say "  `$securityaudit"
+      Say "  `$securityaudit --fix"
+    }
+    else {
+      Say "  `$$skill"
+    }
+  }
+}
+
+function Copy-CodexSkill {
+  param(
+    [string]$SourcePath,
+    [string]$SkillName
+  )
+
+  Assert-ValidSkillName -SkillName $SkillName
 
   $skillFile = Join-Path $SourcePath "SKILL.md"
   if (-not (Test-Path -LiteralPath $skillFile)) {
@@ -26,48 +59,60 @@ function Copy-SecurityAuditSkill {
   }
 
   $skillText = Get-Content -LiteralPath $skillFile -Raw
-  if ($skillText -notmatch "(?m)^name:\s*securityaudit\s*$") {
-    Fail "SKILL.md does not look like the securityaudit skill"
+  if ($skillText -notmatch "(?m)^name:\s*$([regex]::Escape($SkillName))\s*$") {
+    Fail "SKILL.md at $SourcePath does not look like the $SkillName skill"
   }
 
   $codexHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $HOME ".codex" }
   $destParent = Join-Path $codexHome "skills"
-  $dest = Join-Path $destParent "securityaudit"
+  $dest = Join-Path $destParent $SkillName
 
   New-Item -ItemType Directory -Force -Path $destParent | Out-Null
 
-  $stage = Join-Path $destParent (".securityaudit-install-" + [Guid]::NewGuid().ToString("N"))
-  $stageSkill = Join-Path $stage "securityaudit"
+  $stage = Join-Path $destParent (".$SkillName-install-" + [Guid]::NewGuid().ToString("N"))
+  $stageSkill = Join-Path $stage $SkillName
   New-Item -ItemType Directory -Force -Path $stageSkill | Out-Null
 
   Copy-Item -Path (Join-Path $SourcePath "*") -Destination $stageSkill -Recurse -Force
 
   if (-not (Test-Path -LiteralPath (Join-Path $stageSkill "SKILL.md"))) {
-    Fail "Install staging failed"
+    Fail "Install staging failed for $SkillName"
   }
 
   if (Test-Path -LiteralPath $dest) {
     $backup = "$dest.backup.$(Get-Date -Format 'yyyyMMdd-HHmmss')"
-    Say "Existing securityaudit skill found. Backing it up to:"
+    Say "Existing $SkillName skill found. Backing it up to:"
     Say $backup
     Move-Item -LiteralPath $dest -Destination $backup
   }
 
   Move-Item -LiteralPath $stageSkill -Destination $dest
   Remove-Item -LiteralPath $stage -Force -ErrorAction SilentlyContinue
-
-  Say ""
-  Say "Installed securityaudit to:"
-  Say $dest
-  Say ""
-  Say "Restart Codex, then use:"
-  Say "  `$securityaudit"
-  Say "  `$securityaudit --fix"
+  Say "Installed $SkillName to $dest"
 }
 
-if ($PSScriptRoot -and (Test-Path -LiteralPath (Join-Path $PSScriptRoot $SkillPath "SKILL.md"))) {
-  Say "Installing securityaudit from local checkout..."
-  Copy-SecurityAuditSkill -SourcePath (Join-Path $PSScriptRoot $SkillPath)
+$skillNames = Get-SkillList -SkillText $Skills
+if ($skillNames.Count -eq 0) {
+  Fail "No skills requested"
+}
+
+if ($PSScriptRoot -and (Test-Path -LiteralPath (Join-Path (Join-Path $PSScriptRoot "securityaudit") "SKILL.md"))) {
+  Say "Installing skills from local checkout..."
+  foreach ($skill in $skillNames) {
+    $sourcePath = Join-Path $PSScriptRoot $skill
+    if (-not (Test-Path -LiteralPath (Join-Path $sourcePath "SKILL.md"))) {
+      Fail "Could not find $skill/SKILL.md in local checkout"
+    }
+    Copy-CodexSkill -SourcePath $sourcePath -SkillName $skill
+  }
+  Say ""
+  Say "Installed skills:"
+  foreach ($skill in $skillNames) {
+    $codexHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $HOME ".codex" }
+    Say "  $skill -> $(Join-Path (Join-Path $codexHome "skills") $skill)"
+  }
+  Say ""
+  Show-CodexUsage -SkillNames $skillNames
   exit 0
 }
 
@@ -84,21 +129,32 @@ try {
   $archive = Join-Path $temp "repo.zip"
   $url = "https://github.com/$RepoSlug/archive/refs/heads/$Ref.zip"
 
-  Say "Downloading securityaudit from $RepoSlug ($Ref)..."
+  Say "Downloading skills from $RepoSlug ($Ref)..."
   $client = New-Object Net.WebClient
   $client.DownloadFile($url, $archive)
 
   Expand-Archive -LiteralPath $archive -DestinationPath $temp -Force
 
-  $skillFile = Get-ChildItem -Path $temp -Filter "SKILL.md" -Recurse |
-    Where-Object { Split-Path -Leaf (Split-Path -Parent $_.FullName) -eq $SkillPath } |
-    Select-Object -First 1
+  foreach ($skill in $skillNames) {
+    $skillFile = Get-ChildItem -Path $temp -Filter "SKILL.md" -Recurse |
+      Where-Object { Split-Path -Leaf (Split-Path -Parent $_.FullName) -eq $skill } |
+      Select-Object -First 1
 
-  if (-not $skillFile) {
-    Fail "Could not find $SkillPath/SKILL.md in the downloaded repo"
+    if (-not $skillFile) {
+      Fail "Could not find $skill/SKILL.md in the downloaded repo"
+    }
+
+    Copy-CodexSkill -SourcePath (Split-Path -Parent $skillFile.FullName) -SkillName $skill
   }
 
-  Copy-SecurityAuditSkill -SourcePath (Split-Path -Parent $skillFile.FullName)
+  Say ""
+  Say "Installed skills:"
+  foreach ($skill in $skillNames) {
+    $codexHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $HOME ".codex" }
+    Say "  $skill -> $(Join-Path (Join-Path $codexHome "skills") $skill)"
+  }
+  Say ""
+  Show-CodexUsage -SkillNames $skillNames
 }
 finally {
   Remove-Item -LiteralPath $temp -Recurse -Force -ErrorAction SilentlyContinue

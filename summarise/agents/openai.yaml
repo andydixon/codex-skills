@@ -1,0 +1,4 @@
+interface:
+  display_name: "Summarise"
+  short_description: "Generate project evolution summaries"
+  default_prompt: "Use $summarise to create a SUMMARY.md for this repository."

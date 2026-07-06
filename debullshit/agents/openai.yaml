@@ -1,0 +1,4 @@
+interface:
+  display_name: "Debullshit"
+  short_description: "Translate corporate email into plain English"
+  default_prompt: "Use $debullshit to translate this email into clear, ADHD-friendly plain English."
