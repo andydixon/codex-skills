@@ -1,21 +1,23 @@
 ---
 name: securityaudit
 description: >-
-  Run a deep, evidence-based security audit of a software project, create security and functionality-next-step reports under audits/, or fix findings with --fix. Use for securityaudit/securityaudit --fix, secure code review, blackhat-style adversarial review, threat modelling, dependency/configuration review, denial-of-service analysis, frontend HTML/JavaScript robustness review, project-wide appsec assessment, code-quality hardening, and repair of confirmed security, DoS, frontend, robustness, or maintainability findings. Normal mode audits source, tests, build/deploy files, dependencies, CI/CD, auth/authz, input handling, browser behavior, data protection, infrastructure, operations, DoS and abuse vectors, and fragile code without changing app files except git bootstrap if needed and reports. Fix mode safely improves confirmed issues in git, preserving functionality, testing, and committing successful fixes.
+  Run a deep, paranoid, evidence-based security audit of a software project, create security and functionality-next-step reports under audits/, or fix findings with --fix. Use for securityaudit/securityaudit --fix, secure code review, blackhat-style adversarial review, threat modelling, cryptography and key-management review (including post-quantum readiness), in-memory secret handling and credential hygiene review, memory-safety review, dependency/configuration review, denial-of-service and resource-exhaustion analysis, frontend HTML/JavaScript robustness review, project-wide appsec assessment, code-quality hardening, and repair of confirmed security, DoS, frontend, robustness, or maintainability findings. Normal mode audits source, tests, build/deploy files, dependencies, CI/CD, auth/authz, input handling, cryptography, secret storage and lifetime (at rest, in transit, and in memory), browser behavior, data protection, infrastructure, operations, DoS and abuse vectors, memory/CPU s
+afety, and fragile code without changing app files except git bootstrap if needed and reports. Fix mode safely improves confirmed issues in git, preserving functionality, testing, and committing successful fixes.
 ---
 
 # Security Audit
 
 ## Core Rules
 
-- Act as a senior application security engineer, secure code reviewer, threat modeller, abuse-case tester, and pragmatic maintainer.
+- Act as a senior application security engineer, secure code reviewer, cryptographer, threat modeller, abuse-case tester, and pragmatic maintainer.
+- Adopt a paranoid, assume-breach posture: treat every network as hostile, every input as attacker-controlled, every dependency as potentially compromised, and every trust assumption as unproven until the code demonstrates it. Aim for the standard "would this survive a motivated, well-resourced attacker with time" rather than "does this pass a scan".
+- Paranoia governs what you *look for*, not what you *claim*. Never omit a plausible issue because it feels unlikely — record it and let severity and confidence ratings carry the uncertainty. Equally, never inflate: tie every finding to concrete evidence from files, functions, routes, dependencies, configuration values, behaviours, or architectural decisions.
 - Use an adversarial "blackhat hacker" lens safely: think like a hostile attacker trying to exploit, DoS, bypass, persist, pivot, exfiltrate, or abuse business logic, but keep all testing local, authorised, non-destructive, and evidence-based.
-- Review the entire project deeply and sceptically. Tie every finding to concrete evidence from files, functions, routes, dependencies, configuration values, behaviours, or architectural decisions.
+- Review the entire project deeply and sceptically. Do not invent files, routes, code, dependencies, or findings. If line numbers are unavailable, identify the nearest function, block, route, or configuration key.
 - Create an `audits/` folder at the project root if it does not exist. Write all audit artifacts there.
 - Save the security report as `audits/YYYYMMDD-HHII-securityAudit.md`, using the current local system date and time. Use four-digit 24-hour time, e.g. `audits/20260131-1427-securityAudit.md`.
 - Also save a functionality and next-steps report as `audits/YYYYMMDD-HHII-functionalityNextSteps.md` with the same timestamp as the security report.
-- Do not invent files, routes, code, dependencies, or findings. If line numbers are unavailable, identify the nearest function, block, route, or configuration key.
-- If a class of issue was checked and not found, mention that briefly.
+- If a class of issue was checked and not found, mention that briefly — a clean result is evidence, and it distinguishes "verified absent" from "not examined".
 - Keep snippets short and focused.
 
 ## Project Preparation and Git Safety
@@ -42,7 +44,7 @@ Normal audit mode may create the git bootstrap commit if no repository exists an
 
 Use this mode unless the user explicitly includes `--fix`.
 
-- Perform the full security, DoS, abuse-case, code-quality, frontend robustness, dependency, configuration, and operational review.
+- Perform the full security, cryptography, secrets-hygiene, memory-safety, DoS, abuse-case, code-quality, frontend robustness, dependency, configuration, and operational review.
 - Write both reports under `audits/`.
 - Do not change application code, configuration, tests, dependency files, or deployment files.
 - Use recommendations, safer examples, and suggested tests in the reports rather than applying changes.
@@ -60,7 +62,8 @@ Use this mode only when the user explicitly invokes `securityaudit --fix` or oth
 - For HTML and JavaScript changes, verify that user-visible events fire, async failures are handled, errors do not break subsequent scripts, and useful non-sensitive diagnostics go to the console.
 - After each logical fix or tightly related group of fixes, run the most relevant tests or checks for that change. Prefer targeted tests first, then broader suites when risk warrants it.
 - Commit only after tests/checks pass. If tests fail, do not commit; either repair the failure and retest or report the blocker.
-- Use clear security- or robustness-focused commit messages, e.g. `fix: enforce webhook signature validation` or `fix: handle frontend form submission errors`.
+- Use clear security- or robustness-focused commit messages, e.g. `fix: enforce webhook signature validation` or `fix: zeroize database credentials after connection setup`.
+- When fixing cryptographic weaknesses, upgrade to current best practice (see Cryptography Review). Where the project controls both ends of a protocol, prefer hybrid post-quantum schemes when the platform supports them. Where a cryptographic fix would break compatibility (stored ciphertexts, existing tokens, external peers, password hashes), stop and ask the user for consent first, briefly explaining the change, the benefit, the migration path, and what may break.
 - If a finding cannot be fixed safely in the current context, leave it uncommitted and document the reason, risk, and next step.
 - At the end, summarize commits created, tests run, findings fixed, findings left open, generated audit files, and any residual risk.
 
@@ -72,17 +75,76 @@ Use a two-pass approach:
    - Identify trust boundaries, entry points, exposed routes, auth gates, roles, state transitions, background jobs, queue consumers, file parsers, webhooks, third-party integrations, storage layers, admin/debug features, and deployment exposure.
    - Trace unauthenticated, low-privilege, cross-tenant, cross-origin, public file, and machine-to-machine paths first.
    - Look for ways to turn benign features into abuse primitives: enumeration, replay, over-posting, confused deputy, privilege escalation, data scraping, quota bypass, workflow bypass, SSRF, lateral movement, and persistence.
+   - Include post-compromise perspectives: what does an attacker gain from a stolen backup, a core dump, a compromised dependency, a leaked log archive, read access to the box, or one leaked key? Defence in depth findings belong in the report even when the outer wall currently holds.
 2. Validate defensively from the code.
    - Tie every plausible attack path to concrete implementation evidence.
    - Prefer safe local proof-of-concept inputs, reproduction steps, or unit-test-shaped examples.
    - State what would be required to exploit the issue and what evidence would raise or lower confidence.
+
+## Cryptography Review
+
+Review all cryptographic use as a senior cryptographer. Custom or hand-rolled cryptography is a finding by default — the burden of proof is on the implementation.
+
+- Algorithms and modes: flag MD5/SHA-1 in any security context, DES/3DES/RC4/Blowfish, ECB mode, unauthenticated CBC, RSA PKCS#1 v1.5 encryption, RSA < 2048 bits, EC curves weaker than P-256/X25519, and any bespoke construction. Prefer AEAD (AES-256-GCM, ChaCha20-Poly1305) for encryption and SHA-256/SHA-3/BLAKE2+ for hashing.
+- Nonces and IVs: verify every nonce/IV is unique per key. Treat static, hardcoded, counter-reset-prone, or randomly generated GCM nonces without rotation-limit awareness (2^32 messages for random 96-bit nonces) as findings — GCM nonce reuse is catastrophic. Check IVs are not derived from predictable data and never reused with CBC.
+- Randomness: all keys, tokens, session IDs, nonces, salts, password-reset codes, and OTPs must come from a CSPRNG (`crypto/rand`, `secrets`, `crypto.getRandomValues`, `SecureRandom`, getrandom). Flag `Math.random`, `rand()`, `random.random()`, `java.util.Random`, time-seeded PRNGs, and truncated randomness that reduces entropy below ~128 bits.
+- Password storage: require a memory-hard or cost-parameterised hash — Argon2id (preferred), scrypt, or bcrypt — with current-generation parameters. Flag plain or salted SHA-x/MD5, missing salts, shared salts, low iteration/cost factors, and truncation issues (bcrypt's 72-byte limit with long inputs or pre-hashing pitfalls).
+- Key derivation: HKDF (or equivalent) for deriving keys from keys; PBKDF2/Argon2 for deriving keys from passwords. Flag raw hashing of secrets to make keys, key reuse across purposes (encrypt vs MAC vs sign), and passwords used directly as keys.
+- Constant-time behaviour: MAC checks, signature verification, token comparison, and password-hash verification must use constant-time comparison (`hmac.compare_digest`, `crypto.timingSafeEqual`, `subtle.ConstantTimeCompare`). Flag `==`/`===`/`strcmp`/early-exit loops on secret material, and observable timing/error differences that create padding-oracle or user-enumeration channels.
+- Signatures and tokens: check JWT handling for `alg: none`, HS/RS confusion, missing `alg`/`iss`/`aud`/`exp` validation, and verify-after-decode ordering. Check webhook and cookie signatures for signature stripping, canonicalisation ambiguity, and truncated MACs. Verify signatures before parsing or acting on payloads.
+- TLS: minimum TLS 1.2 (prefer 1.3), certificate and hostname verification never disabled (`verify=False`, `rejectUnauthorized: false`, `InsecureSkipVerify: true`, custom trust-all managers are all findings, including in "internal" or test-reachable code paths), no cleartext fallbacks, HSTS where applicable.
+- Key management: flag hardcoded keys, keys committed to the repo or baked into images, world-readable key files, absent rotation strategy for long-lived keys, and encryption keys stored beside the data they protect. Check for envelope encryption/KMS use where the platform provides it.
+- Post-quantum readiness: assess harvest-now-decrypt-later exposure — data encrypted today whose confidentiality must outlive the advent of cryptographically relevant quantum computers. Where the project controls both endpoints and the stack supports it, recommend hybrid key exchange (e.g. X25519 + ML-KEM-768) and note ML-DSA/SLH-DSA for long-lived signatures. Where PQC is already used, verify it is a genuine hybrid or standardised scheme (FIPS 203/204/205), that failure does not silently fall back to classical-only, that implementations come from maintained libraries rather than hand-rolled code, and that key/ciphertext sizes and encapsulation results are validated. Do not recommend PQC where it would break interop with systems the project does not control — record it as accepted residual risk instead.
+
+## Secrets and In-Memory Credential Hygiene
+
+Audit the full lifecycle of every credential, key, token, and other secret: acquisition → storage → use → propagation → destruction. A secret is exposed for as long as any copy of it exists anywhere.
+
+### At rest and in configuration
+
+- Search for hardcoded secrets in source, tests, fixtures, git history, comments, and sample configs. Verify `.env`/credential files are gitignored and not baked into Docker images via `COPY`, `ENV`, or build args (build args persist in image history).
+- Prefer secret managers/keychains/OS keystores over plaintext files; where files are unavoidable, check permissions (0600), ownership, and encryption at rest.
+- Check secrets are not written to logs, error messages, stack traces, crash reports, analytics/telemetry (e.g. Sentry breadcrumbs and request bodies), serialized session stores, caches, backups, or debug output. Check `toString`/`repr`/`Debug`/serialisation of config and credential objects does not embed secret fields — require redaction or field exclusion.
+
+### In transit and between processes
+
+- Flag secrets in URLs or query strings (they land in access logs, proxies, browser history, and Referer headers), in GET request bodies cached by intermediaries, and in headers logged by middleware.
+- Flag secrets passed as command-line arguments (visible in `ps`/`/proc/*/cmdline` to other local users) and note that environment variables leak via `/proc/self/environ`, crash dumps, CI logs, `docker inspect`, and inheritance by every child process. Prefer file-based or socket-based secret delivery with tight permissions where the platform allows.
+
+### In memory
+
+This is a mandatory check, not an optional extra. For every long-lived secret held by the application (master keys, DB passwords, API keys, signing keys, user passwords in flight):
+
+- Minimise lifetime and copies: the secret should be read as late as possible, held in as few places as possible, and destroyed as soon as it is no longer needed. Flag secrets parked in global variables, config singletons, or framework contexts for the life of the process when they are only needed at startup (e.g. a DB password still resident after the connection pool is established).
+- Zeroization: in native code, require `explicit_bzero`/`memset_s`/`SecureZeroMemory`/`sodium_memzero` — plain `memset` before `free` is often elided by the optimiser and is a finding. In Rust, look for the `zeroize` crate / `ZeroizeOnDrop` on key material. Flag secret buffers freed or dropped without wiping.
+- Immutable-string trap: in GC languages (Java, C#, Python, JavaScript, Go strings), immutable strings cannot be wiped and may be interned, copied by the GC, or retained until collection. Prefer mutable containers wiped after use — `char[]`/`byte[]` with `Arrays.fill` in Java, `bytearray` in Python, `[]byte` in Go, `Buffer.fill(0)` in Node. Report string-typed key material as a finding with honest caveats: GC copying means wiping is best-effort in managed runtimes, so the primary control is shortening lifetime and reducing copies.
+- Swap and dumps: for high-value keys in native/systems code, check for `mlock`/`VirtualLock` to keep pages out of swap and `madvise(MADV_DONTDUMP)`/`RLIMIT_CORE=0`/`prctl(PR_SET_DUMPABLE, 0)` to keep them out of core dumps. In managed runtimes, check that heap-dump and diagnostic endpoints are not exposed: Spring Boot `/actuator/heapdump` and `/actuator/env`, Go `net/http/pprof` on public listeners, Node `--inspect` in production, PHP `phpinfo()`, Rails/Django debug pages. Any endpoint that can serialise process memory or environment is an instant secret-disclosure path.
+- Crash and error paths: verify exception handlers, panic recovery, and crash reporters do not capture locals, request bodies, or headers containing credentials.
+- Libraries: prefer secret-aware wrappers where the ecosystem offers them (e.g. `zeroize`/`secrecy` in Rust, libsodium `sodium_mlock`ed buffers, JCA key handles, OS keychains) so keys live in protected memory rather than ordinary heap allocations.
+- Rate severity honestly: memory-scraping generally requires local code execution or a memory-disclosure bug, so pure in-memory findings are usually Medium/Low as defence-in-depth — unless combined with an exposure path found above (heap-dump endpoint, swap on shared hosts, core dumps shipped to third-party crash services), which upgrades them sharply.
+
+## Memory, CPU, and Resource Safety
+
+### Memory safety (native and FFI code)
+
+Where C, C++, Rust `unsafe`, cgo, JNI, ctypes, N-API, or other native/FFI boundaries exist:
+
+- Check for buffer overflows/underflows, off-by-one errors, unchecked length arithmetic, integer overflow/underflow feeding allocations or indexing, format-string bugs, use-after-free, double free, uninitialised memory reads, and type confusion.
+- Audit every `unsafe` block in Rust for justification and soundness invariants; audit FFI boundaries for ownership, lifetime, and error-code handling mismatches.
+- Verify attacker-influenced sizes and offsets are bounds-checked before allocation and copy operations; flag `strcpy`/`sprintf`/`gets`-class APIs and unchecked `memcpy` lengths.
+- Check parsers of untrusted input (file formats, protocols, decompressors) for length-prefix trust, recursion depth, and allocation-before-validation patterns.
+
+### Resource exhaustion (all languages)
+
+- Flag unbounded in-memory growth reachable from input: caches and maps without eviction, per-request buffering of entire bodies/files/results instead of streaming, unbounded queues, listener/subscription leaks, and connection pools without limits.
+- Flag CPU amplification: catastrophic regex backtracking (ReDoS) on user input, hash-flooding via attacker-chosen keys, algorithmic complexity attacks (quadratic parsers, unbounded sorts/joins), and expensive cryptographic operations (bcrypt/argon2 verification, signature checks) reachable pre-authentication without rate limiting.
 
 ## Deep DoS Review
 
 For every public endpoint, parser, import/export path, search/filter/sort path, file upload, webhook, background worker, scheduled task, retry loop, and integration:
 
 - Identify attacker-controlled inputs that influence CPU, memory, disk, network, database, queue depth, lock duration, recursion depth, fan-out, retries, or cache keys.
-- Look for unbounded request bodies, uploads, decompression, pagination, sorting, joins, regular expressions, recursion, loops, promise/task creation, goroutines/threads, retries, timeouts, and response sizes.
+- Look for unbounded request bodies, uploads, decompression (zip/gzip bombs, nested archives), pagination, sorting, joins, regular expressions, recursion, loops, promise/task creation, goroutines/threads, retries, timeouts, and response sizes.
 - Check N+1 query patterns, expensive authorization checks, cache-bypass keys, lock contention, thundering-herd behaviour, idempotency gaps, queue flooding, retry storms, and algorithmic complexity attacks.
 - Check infrastructure limits: reverse proxy body limits, app server timeouts, DB pool sizes, worker concurrency, memory/CPU limits, rate limits, autoscaling assumptions, and circuit breakers.
 - For each credible DoS vector, include a safe trigger example, likely resource impact, required attacker capability, and concrete resource-control fix.
@@ -105,8 +167,8 @@ When HTML, JavaScript, TypeScript, templates, or browser-facing code exists:
 - Exercise key interactions when a local app can run: forms, navigation, modals, uploads, filters, destructive actions, auth/logout, and async flows.
 - Inspect browser console output when possible. Treat uncaught exceptions, unhandled promise rejections, missing assets, blocked requests, and failed event handlers as findings or next-step defects.
 - Ensure errors are handled with user-safe behaviour and useful non-sensitive `console.debug`, `console.warn`, or `console.error` context for developers.
-- Do not log credentials, tokens, session IDs, personal data, sensitive request bodies, or full server responses that may contain secrets.
-- Check browser security issues: DOM XSS, unsafe `innerHTML`, template injection, open redirects, insecure postMessage, CSRF, CORS assumptions, clickjacking, mixed content, insecure cookies, and missing security headers.
+- Do not log credentials, tokens, session IDs, personal data, sensitive request bodies, or full server responses that may contain secrets. Check that tokens are not parked in `localStorage`/`sessionStorage` when HttpOnly cookies would do, and that in-page secrets are not reachable by third-party scripts.
+- Check browser security issues: DOM XSS, unsafe `innerHTML`, template injection, open redirects, insecure postMessage, CSRF, CORS assumptions, clickjacking, mixed content, insecure cookies, missing security headers, and supply-chain exposure from third-party script tags without SRI.
 
 ## Review Scope
 
@@ -114,11 +176,11 @@ Inspect all relevant project surfaces, including:
 
 - Application source code, tests, build scripts, package manifests, lockfiles, and CI/CD configuration.
 - Infrastructure and deployment files such as Dockerfiles, Compose, Kubernetes, Terraform, Ansible, Helm, cloud config, and environment examples.
-- Authentication, authorisation, session, cookie, token, cache, cryptography, key management, logging, monitoring, and error handling code.
+- Authentication, authorisation, session, cookie, token, cache, cryptography, key management, secret storage, logging, monitoring, and error handling code.
 - API routes, controllers, handlers, jobs, workers, queues, scheduled tasks, webhooks, integrations, database access, migrations, file upload, and file processing paths.
 - Input validation, output encoding, CORS, CSRF, security headers, rate limiting, throttling, timeouts, retries, pagination, body-size limits, and resource controls.
 - Frontend templates, HTML, JavaScript/TypeScript, route transitions, event handlers, async flows, error boundaries, console diagnostics, and browser build configuration.
-- Admin, debug, development-only, or operational functionality exposed by code or configuration.
+- Admin, debug, development-only, diagnostic, and operational functionality exposed by code or configuration (including profilers, heap-dump endpoints, and metrics listeners).
 - Tests and test fixtures, especially where they reveal intended security, auth, validation, error, and abuse-case behaviour.
 
 ## Issue Categories
@@ -127,13 +189,15 @@ Look specifically for these categories, but do not limit the audit to them:
 
 - Authentication: missing or weak authentication, insecure password/reset flows, session fixation, token leakage, weak remember-me logic, missing MFA for sensitive flows.
 - Authorisation: IDOR, broken access control, privilege escalation, missing ownership checks, tenant isolation failures, role bypasses, admin route exposure.
-- Injection: SQL, NoSQL, command, LDAP, template, header, log, path traversal, unsafe deserialisation, SSRF, XXE.
+- Injection: SQL, NoSQL, command, LDAP, template, header, log, path traversal, unsafe deserialisation, SSRF, XXE, prototype pollution.
 - Browser-side risks: XSS, CSRF, CORS misconfiguration, clickjacking, insecure cookies, missing security headers, DOM injection, unsafe postMessage, open redirects.
 - API risks: missing validation, excessive data exposure, mass assignment, unsafe pagination, missing rate limits, weak errors, unsafe webhooks, replay risks, missing idempotency.
 - Denial-of-service: unbounded queries, request bodies, pagination, regex backtracking, infinite loops, recursion, memory or CPU exhaustion, file upload abuse, decompression bombs, queue flooding, lock contention, retry storms, missing timeouts, N+1 attack vectors, cache bypass, algorithmic complexity attacks.
+- Memory safety: buffer overflows, use-after-free, double free, integer overflow feeding allocation or indexing, format strings, unsound `unsafe`/FFI code, allocation-before-validation in untrusted parsers.
 - Data protection and privacy: secrets, sensitive data or PII leakage, unsafe logs/errors/backups, weak retention, missing encryption in transit or at rest where relevant.
-- Cryptography: weak algorithms, hardcoded keys, predictable tokens, insecure randomness, missing key rotation, bad signatures, hashes, salts, or IVs.
-- Dependency and supply chain: vulnerable, unpinned, suspicious, deprecated, or confused dependencies; unsafe build scripts; insecure package sources; CI/CD secret exposure.
+- Secrets hygiene: hardcoded or repo-committed secrets, secrets in env vars/args/URLs/logs/images, plaintext key files, secret-bearing debug endpoints, unwiped or long-lived secrets in memory, secrets captured by crash reporters or heap dumps.
+- Cryptography: weak or misused algorithms, nonce/IV reuse, non-constant-time comparisons, hardcoded keys, predictable tokens, insecure randomness, weak password hashing, missing key rotation, bad signatures/salts/KDF parameters, disabled TLS verification, JWT algorithm confusion, missing post-quantum consideration for long-lived confidentiality.
+- Dependency and supply chain: vulnerable, unpinned, suspicious, deprecated, or confused dependencies; unsafe build scripts; insecure package sources; CI/CD secret exposure; install-time script risk.
 - Infrastructure and deployment: insecure images, root containers, excessive capabilities, missing resource limits, network exposure, default credentials, debug mode, verbose production errors, TLS issues, health/readiness gaps, overly permissive IAM/RBAC/file permissions/service accounts.
 - Business logic: race conditions, TOCTOU, payment/credit manipulation, workflow bypass, replay, abuse of invitation/referral/voucher/discount/reward systems, state machine bypasses, missing audit trails.
 - Frontend robustness: broken event handlers, uncaught exceptions, unhandled promise rejections, stale selectors, silent async failures, missing user-safe fallback states, sensitive debug logs.
@@ -159,24 +223,26 @@ Write the final Markdown security report with these sections:
 1. `# Security Audit Report`
 2. `## 1. Executive Summary` - overall posture, highest-risk issues, urgent fixes, architectural concerns.
 3. `## 2. Scope Reviewed` - languages, frameworks, services, config, deployment files, dependency manifests, tests.
-4. `## 3. Methodology` - static review, dependency review, configuration review, threat modelling, adversarial attack-surface mapping, DoS analysis, frontend review, test review.
+4. `## 3. Methodology` - static review, dependency review, configuration review, threat modelling, adversarial attack-surface mapping, cryptography review, secrets-lifecycle review, memory-safety review, DoS analysis, frontend review, test review.
 5. `## 4. Risk Rating Method` - how severity and confidence were assigned.
 6. `## 5. Attack Surface Map` - entry points, trust boundaries, exposed roles, data stores, external integrations, and attacker starting positions.
 7. `## 6. Findings Summary Table` - Markdown table with `ID`, `Severity`, `Confidence`, `Title`, `Component`, `Status`; use `Open` unless already fixed in fix mode.
 8. `## 7. Detailed Findings` - one subsection per finding using the detailed structure below.
 9. `## 8. Blackhat-Style Abuse Paths` - realistic chained attack paths, prerequisites, limits, and defensive breakpoints.
-10. `## 9. Denial-of-Service Review`
-11. `## 10. Dependency and Supply-Chain Review`
-12. `## 11. Secrets and Sensitive Data Review`
-13. `## 12. Authentication and Authorisation Review`
-14. `## 13. Input Validation and Output Encoding Review`
-15. `## 14. Frontend HTML/JavaScript Robustness Review`
-16. `## 15. Infrastructure and Deployment Review`
-17. `## 16. Logging, Monitoring, and Error Handling Review`
-18. `## 17. Test Coverage and Security Regression Gaps`
-19. `## 18. Prioritised Remediation Plan` - Immediate, short-term, medium-term, and long-term fixes.
-20. `## 19. False Positives / Needs Manual Verification`
-21. `## 20. Final Notes` - residual risk and limitations.
+10. `## 9. Denial-of-Service and Resource Exhaustion Review`
+11. `## 10. Cryptography and Key Management Review` - algorithms, randomness, key lifecycle, TLS posture, and post-quantum readiness, including clean results.
+12. `## 11. Secrets Lifecycle and In-Memory Credential Review` - secrets at rest, in transit, in configuration, and in memory; exposure paths (dumps, swap, logs, debug endpoints); zeroization and lifetime findings.
+13. `## 12. Memory and Resource Safety Review` - native/FFI memory safety and unbounded resource growth, or a brief note that no native surface exists.
+14. `## 13. Dependency and Supply-Chain Review`
+15. `## 14. Authentication and Authorisation Review`
+16. `## 15. Input Validation and Output Encoding Review`
+17. `## 16. Frontend HTML/JavaScript Robustness Review`
+18. `## 17. Infrastructure and Deployment Review`
+19. `## 18. Logging, Monitoring, and Error Handling Review`
+20. `## 19. Test Coverage and Security Regression Gaps`
+21. `## 20. Prioritised Remediation Plan` - Immediate, short-term, medium-term, and long-term fixes.
+22. `## 21. False Positives / Needs Manual Verification`
+23. `## 22. Final Notes` - residual risk and limitations.
 
 For each detailed finding, use:
 
