@@ -1,4 +1,4 @@
-# Security Audit Skill Pack
+# Andy's Skill Pack
 
 This repository contains four practical Codex/Claude Code skills:
 
