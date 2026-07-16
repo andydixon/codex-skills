@@ -1,8 +1,6 @@
 ---
 name: securityaudit
-description: >-
-  Run a deep, paranoid, evidence-based security audit of a software project, create security and functionality-next-step reports under audits/, or fix findings with --fix. Use for securityaudit/securityaudit --fix, secure code review, blackhat-style adversarial review, threat modelling, cryptography and key-management review (including post-quantum readiness), in-memory secret handling and credential hygiene review, memory-safety review, dependency/configuration review, denial-of-service and resource-exhaustion analysis, frontend HTML/JavaScript robustness review, project-wide appsec assessment, code-quality hardening, and repair of confirmed security, DoS, frontend, robustness, or maintainability findings. Normal mode audits source, tests, build/deploy files, dependencies, CI/CD, auth/authz, input handling, cryptography, secret storage and lifetime (at rest, in transit, and in memory), browser behavior, data protection, infrastructure, operations, DoS and abuse vectors, memory/CPU s
-afety, and fragile code without changing app files except git bootstrap if needed and reports. Fix mode safely improves confirmed issues in git, preserving functionality, testing, and committing successful fixes.
+description: Run a deep, evidence-based security audit of a software project, or repair confirmed findings when invoked with --fix. Use for securityaudit, securityaudit --fix, secure code review, adversarial or blackhat-style assessment, threat modelling, cryptography, credential hygiene, memory safety, dependency and configuration review, denial-of-service analysis, frontend robustness, application security, and security-focused code hardening. Normal mode writes audit and functionality reports under audits/ without changing application code. Fix mode applies evidence-backed repairs in Git, runs appropriate tests, and commits successful fixes while preserving existing functionality.
 ---
 
 # Security Audit
